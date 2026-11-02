@@ -1,0 +1,19 @@
+# Runtime data, credentials, caches; not application code
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+*.pyc
+__pycache__/
+node_modules/
+.vercel/
+
+# private runtime assets and portable exports
+*.bak
+*.dump
+*.backup
+.env.production*

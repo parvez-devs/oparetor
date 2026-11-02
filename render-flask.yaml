@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: xerotic-uid-flask
+    runtime: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --chdir artifacts/api-server --bind 0.0.0.0:$PORT --workers 2 --threads 8 --timeout 120 fb_server:app
+    healthCheckPath: /
+    envVars:
+      - key: SITE_ORIGIN
+        value: https://oparetor.xerotic.top
+      - key: FLASK_DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
