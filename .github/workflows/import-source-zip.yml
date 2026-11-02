@@ -1,0 +1,48 @@
+name: Import XEROTIC-UID source ZIP
+on:
+  push:
+    branches: ["deploy/xerotic-uid"]
+    paths: ["XEROTIC-UID-production-ready.zip"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout XEROTIC branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: true
+          ref: deploy/xerotic-uid
+      - name: Validate and extract source ZIP
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import pathlib, zipfile
+          zpath=pathlib.Path('XEROTIC-UID-production-ready.zip')
+          if not zpath.is_file(): raise SystemExit('Upload the prepared ZIP to this branch root first')
+          with zipfile.ZipFile(zpath) as z:
+              names=z.namelist()
+              if len(names)>1000: raise SystemExit('Too many ZIP entries')
+              required={'package.json','vercel.json','artifacts/api-server/fb_server.py','artifacts/uid-web/package.json'}
+              if not required.issubset(names): raise SystemExit('Required source files missing')
+              for entry in z.infolist():
+                  name=entry.filename
+                  parts=pathlib.PurePosixPath(name).parts
+                  if name.startswith('/') or '..' in parts or '\\' in name: raise SystemExit('Unsafe ZIP path')
+                  if name.startswith('.github/') or name.startswith('.git/'): raise SystemExit('Workflow overwrite denied')
+                  if (name.startswith('.env') and name!='.env.example') or name.endswith(('.db','.sqlite','.sqlite3','.dump','.backup','.pyc')) or '__pycache__' in parts: raise SystemExit('Sensitive runtime data forbidden')
+                  if entry.file_size>5_000_000: raise SystemExit('Oversized file')
+              z.extractall('.')
+          zpath.unlink()
+          PY
+      - name: Commit source
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "Import XEROTIC-UID source without runtime data"
+          git push origin HEAD:deploy/xerotic-uid
